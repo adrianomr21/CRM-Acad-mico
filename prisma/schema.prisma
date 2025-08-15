@@ -1,0 +1,408 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Usuários do sistema
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  role      Role     @default(PROFESSOR)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relacionamentos
+  professorDisciplines ProfessorDiscipline[]
+  adminComments       AdminComment[]
+  createdDisciplines  Discipline[]
+
+  @@map("users")
+}
+
+// Papéis dos usuários
+enum Role {
+  ADMIN
+  PROFESSOR
+}
+
+// Cursos
+model Course {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  type        CourseType
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relacionamentos
+  disciplines Discipline[]
+
+  @@map("courses")
+}
+
+// Tipos de cursos
+enum CourseType {
+  GRADUACAO
+  POS_GRADUACAO
+  EXTENSAO
+  EAD
+  INSTITUCIONAL
+}
+
+// Disciplinas
+model Discipline {
+  id                   String   @id @default(cuid())
+  name                 String
+  code                 String   @unique
+  workload            Int      // Carga horária total
+  courseType           CourseType
+  courseId             String
+  hasEADHours          Boolean  @default(false)
+  hasPracticalHours    Boolean  @default(false)
+  hasIntegratedProject Boolean  @default(false)
+  hasPresentialExam    Boolean  @default(false)
+  isLicenciatura       Boolean  @default(false)
+  hasComplementaryEval Boolean @default(false)
+  hasExtensionCurriculum Boolean @default(false)
+  needsPresentialTool  Boolean  @default(false)
+  status               DisciplineStatus @default(CRIADA)
+  deliveryDate         DateTime?
+  lastAccess           DateTime?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  // Relacionamentos
+  course               Course               @relation(fields: [courseId], references: [id])
+  professorDisciplines ProfessorDiscipline[]
+  sessions             Session[]
+  templates            DisciplineTemplate[]
+  adminComments        AdminComment[]
+  createdBy            User                 @relation(fields: [createdById], references: [id])
+
+  createdById String
+
+  @@map("disciplines")
+}
+
+// Status das disciplinas
+enum DisciplineStatus {
+  CRIADA
+  ATRIBUIDA
+  EM_PROGRESSO
+  CONCLUIDA
+  ATRASADA
+}
+
+// Relacionamento entre professores e disciplinas
+model ProfessorDiscipline {
+  id           String   @id @default(cuid())
+  professorId  String
+  disciplineId String
+  assignedAt   DateTime @default(now())
+  status       AssignmentStatus @default(PENDENTE)
+
+  // Relacionamentos
+  professor User       @relation(fields: [professorId], references: [id])
+  discipline Discipline @relation(fields: [disciplineId], references: [id])
+
+  @@unique([professorId, disciplineId])
+  @@map("professor_disciplines")
+}
+
+// Status de atribuição
+enum AssignmentStatus {
+  PENDENTE
+  EM_PROGRESSO
+  CONCLUIDA
+  ATRASADA
+}
+
+// Sessões das disciplinas
+model Session {
+  id           String     @id @default(cuid())
+  disciplineId String
+  name         String
+  type         SessionType
+  order        Int
+  isCompleted  Boolean    @default(false)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  // Relacionamentos
+  discipline   Discipline      @relation(fields: [disciplineId], references: [id])
+  materials    Material[]
+  activities   Activity[]
+  evaluations  Evaluation[]
+  extras       Extra[]
+  adminComments AdminComment[]
+
+  @@map("sessions")
+}
+
+// Tipos de sessões
+enum SessionType {
+  APRESENTACAO
+  ROTEIRO
+  AVALIACAO
+}
+
+// Templates de disciplina
+model DisciplineTemplate {
+  id           String   @id @default(cuid())
+  disciplineId String
+  sessionName  String   // ex: "Roteiro", "Temática"
+  numberingType NumberingType
+  minAuthorMaterials Int
+  minStudyActivities Int
+  minEvaluations     Int
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relacionamentos
+  discipline Discipline @relation(fields: [disciplineId], references: [id])
+
+  @@map("discipline_templates")
+}
+
+// Tipos de numeração
+enum NumberingType {
+  NUMBERS
+  LETTERS
+  ROMAN
+}
+
+// Materiais
+model Material {
+  id          String       @id @default(cuid())
+  sessionId   String
+  name        String
+  type        MaterialType
+  isAuthorial Boolean      @default(false)
+  usedAI      Boolean      @default(false)
+  aiTool      String?
+  aiUsage     String?
+  description String?
+  fileUrl     String?
+  linkUrl     String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  // Relacionamentos
+  session Session @relation(fields: [sessionId], references: [id])
+
+  @@map("materials")
+}
+
+// Tipos de materiais
+enum MaterialType {
+  BASICO
+  COMPLEMENTAR
+}
+
+// Atividades de estudo
+model Activity {
+  id          String       @id @default(cuid())
+  sessionId   String
+  type        ActivityType
+  title       String
+  guidance    String
+  order       Int
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  // Relacionamentos
+  session     Session    @relation(fields: [sessionId], references: [id])
+  quiz        Quiz?
+  assignment  Assignment?
+  forum       Forum?
+
+  @@map("activities")
+}
+
+// Tipos de atividades
+enum ActivityType {
+  QUESTIONARIO
+  TAREFA
+  FORUM
+}
+
+// Quiz (múltipla escolha)
+model Quiz {
+  id         String   @id @default(cuid())
+  activityId String   @unique
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relacionamentos
+  activity   Activity       @relation(fields: [activityId], references: [id])
+  questions  QuizQuestion[]
+
+  @@map("quizzes")
+}
+
+// Questões de quiz
+model QuizQuestion {
+  id          String   @id @default(cuid())
+  quizId      String
+  question    String
+  correctAnswer String
+  wrongAnswer1 String
+  wrongAnswer2 String
+  wrongAnswer3 String
+  wrongAnswer4 String
+  feedback    String?
+  order       Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relacionamentos
+  quiz Quiz @relation(fields: [quizId], references: [id])
+
+  @@map("quiz_questions")
+}
+
+// Tarefas (dissertativas)
+model Assignment {
+  id         String   @id @default(cuid())
+  activityId String   @unique
+  question   String
+  expectedAnswer String?
+  fileUrl    String?
+  feedback   String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relacionamentos
+  activity Activity @relation(fields: [activityId], references: [id])
+
+  @@map("assignments")
+}
+
+// Fóruns
+model Forum {
+  id         String   @id @default(cuid())
+  activityId String   @unique
+  statement  String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relacionamentos
+  activity Activity @relation(fields: [activityId], references: [id])
+
+  @@map("forums")
+}
+
+// Avaliações
+model Evaluation {
+  id          String        @id @default(cuid())
+  sessionId   String
+  type        EvaluationType
+  guidance    String
+  fileUrl     String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  // Relacionamentos
+  session     Session         @relation(fields: [sessionId], references: [id])
+  questions   EssayQuestion[] @relation("EssayQuestions")
+  mcQuestions MCQuestion[]    @relation("MCQuestions")
+
+  @@map("evaluations")
+}
+
+// Tipos de avaliações
+enum EvaluationType {
+  DISSERTATIVA
+  OBJETIVA
+}
+
+// Questões dissertativas
+model EssayQuestion {
+  id           String   @id @default(cuid())
+  evaluationId String
+  question     String
+  expectedAnswer String?
+  feedback     String?
+  fileUrl      String?
+  order        Int
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relacionamentos
+  evaluation Evaluation @relation("EssayQuestions", fields: [evaluationId], references: [id])
+
+  @@map("essay_questions")
+}
+
+// Questões de múltipla escolha
+model MCQuestion {
+  id           String   @id @default(cuid())
+  evaluationId String
+  question     String
+  correctAnswer String
+  wrongAnswer1 String
+  wrongAnswer2 String
+  wrongAnswer3 String
+  wrongAnswer4 String
+  feedback     String?
+  order        Int
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relacionamentos
+  evaluation Evaluation @relation("MCQuestions", fields: [evaluationId], references: [id])
+
+  @@map("mc_questions")
+}
+
+// Extras
+model Extra {
+  id          String     @id @default(cuid())
+  sessionId   String
+  type        ExtraType
+  description String
+  fileUrl     String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  // Relacionamentos
+  session Session @relation(fields: [sessionId], references: [id])
+
+  @@map("extras")
+}
+
+// Tipos de extras
+enum ExtraType {
+  SAIBA_MAIS
+  ATENCAO
+  PARA_REFLETIR
+}
+
+// Comentários administrativos
+model AdminComment {
+  id           String   @id @default(cuid())
+  userId       String
+  disciplineId String?
+  sessionId    String?
+  content      String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relacionamentos
+  user       User       @relation(fields: [userId], references: [id])
+  discipline Discipline? @relation(fields: [disciplineId], references: [id])
+  session    Session?   @relation(fields: [sessionId], references: [id])
+
+  @@map("admin_comments")
+}
