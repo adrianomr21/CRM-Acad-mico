@@ -1,0 +1,18 @@
+https://supabase.com/dashboard/org/ojvrdtcctwbeoweysnwm
+
+crm-academico
+Senha desse banco específico: Amr210345$
+
+
+
+Project URL: https://fryhyfcjegfvvfkeunyk.supabase.co
+
+Anon Key: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZyeWh5ZmNqZWdmdnZma2V1bnlrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUyNjE3ODcsImV4cCI6MjA3MDgzNzc4N30.r9QJG4cZPKBOZTni8Mo4yhXuXHZHZbyomfm83FrfxjY
+
+Service Role Key
+
+import { createClient } from '@supabase/supabase-js'
+
+const supabaseUrl = 'https://fryhyfcjegfvvfkeunyk.supabase.co'
+const supabaseKey = process.env.SUPABASE_KEY
+const supabase = createClient(supabaseUrl, supabaseKey)
